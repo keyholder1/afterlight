@@ -37,7 +37,15 @@ function CaptureTabPlaceholder() {
   return null;
 }
 
-function MainTabs({ userId, partnerName }: { userId: string; partnerName: string | null }) {
+function MainTabs({
+  userId,
+  pairId,
+  partnerName,
+}: {
+  userId: string;
+  pairId: string;
+  partnerName: string | null;
+}) {
   const theme = useTheme();
   return (
     <Tab.Navigator
@@ -64,7 +72,7 @@ function MainTabs({ userId, partnerName }: { userId: string; partnerName: string
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.getParent()?.navigate('CameraModal');
+            navigation.getParent()?.navigate('CameraModal', { userId, pairId });
           },
         })}
       />
@@ -108,7 +116,9 @@ function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="MainTabs">
-        {() => <MainTabs userId={bootstrap.userId!} partnerName={bootstrap.partnerName} />}
+        {() => (
+          <MainTabs userId={bootstrap.userId!} pairId={bootstrap.pair!.id} partnerName={bootstrap.partnerName} />
+        )}
       </RootStack.Screen>
       <RootStack.Screen
         name="CameraModal"

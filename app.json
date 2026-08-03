@@ -26,7 +26,21 @@
     "plugins": [
       "expo-sqlite",
       "expo-image",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Afterlight needs your camera to capture a memory.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Afterlight uses your location to quietly note where a memory was captured, only when you choose to."
+        }
+      ]
     ]
   }
 }
