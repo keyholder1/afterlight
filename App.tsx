@@ -6,7 +6,7 @@
 
 import 'react-native-url-polyfill/auto';
 import React, { useEffect } from 'react';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -25,6 +25,7 @@ import HomeTimelineScreen from './src/screens/HomeTimelineScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import CameraScreen from './src/screens/CameraScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import { HomeIcon, CalendarIcon, CameraIcon } from './src/components/ui/icons';
 
 const RootStack = createNativeStackNavigator();
 const AuthStackNav = createNativeStackNavigator();
@@ -51,24 +52,38 @@ function MainTabs({
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false, // no labels — see docs/01-product-spec.md § UI philosophy
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.textTertiary,
         tabBarStyle: {
           backgroundColor: theme.colors.bgSurface,
           borderTopColor: theme.colors.borderHairline,
         },
-        // Tab bar icons/label removal per docs/01-product-spec.md § UI
-        // philosophy land with the real component build in Phase 3.
       }}
     >
-      <Tab.Screen name="Home">
+      <Tab.Screen
+        name="Home"
+        options={{ tabBarIcon: ({ color }) => <HomeIcon color={color} /> }}
+      >
         {({ navigation }) => (
-          <HomeTimelineScreen navigation={navigation} userId={userId} partnerName={partnerName} />
+          <HomeTimelineScreen
+            navigation={navigation}
+            userId={userId}
+            pairId={pairId}
+            partnerName={partnerName}
+          />
         )}
       </Tab.Screen>
       <Tab.Screen
         name="Capture"
         component={CaptureTabPlaceholder}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <View style={[styles.captureFab, { backgroundColor: theme.colors.accent, borderColor: theme.colors.bgSurface }]}>
+              <CameraIcon color="#fff" />
+            </View>
+          ),
+        }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
@@ -76,7 +91,11 @@ function MainTabs({
           },
         })}
       />
-      <Tab.Screen name="Calendar" component={CalendarScreen} />
+      <Tab.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{ tabBarIcon: ({ color }) => <CalendarIcon color={color} /> }}
+      />
     </Tab.Navigator>
   );
 }
@@ -176,3 +195,15 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  captureFab: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -16,
+    borderWidth: 4,
+  },
+});
