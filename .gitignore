@@ -1,0 +1,41 @@
+# Expo / React Native
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Native
+android/
+ios/
+
+# Metro
+.metro-health-check*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# EAS
+eas.json.local
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
