@@ -10,6 +10,8 @@
 
 import { getDb } from './index';
 import { uuid } from '../lib/uuid';
+import { recomputeDaySummary } from './daySummaries';
+import { dayKey } from '../lib/formatTimestamp';
 
 export type LocalMemory = {
   id: string;
@@ -133,6 +135,8 @@ export async function insertLocalMemory(input: NewMemoryInput): Promise<LocalMem
     `insert into pending_uploads (memory_id, local_uri, local_thumb_uri) values (?, ?, ?);`,
     [memory.id, input.localUri, input.localThumbUri],
   );
+
+  await recomputeDaySummary(dayKey(memory.captured_at));
 
   return memory;
 }

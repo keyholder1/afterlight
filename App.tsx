@@ -23,13 +23,34 @@ import DisplayNameScreen from './src/screens/DisplayNameScreen';
 import PairingHomeScreen from './src/screens/PairingHomeScreen';
 import HomeTimelineScreen from './src/screens/HomeTimelineScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
+import DayDetailScreen from './src/screens/DayDetailScreen';
+import StoryPlaybackScreen from './src/screens/StoryPlaybackScreen';
 import CameraScreen from './src/screens/CameraScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { HomeIcon, CalendarIcon, CameraIcon } from './src/components/ui/icons';
 
 const RootStack = createNativeStackNavigator();
 const AuthStackNav = createNativeStackNavigator();
+const CalendarStackNav = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// docs/03-information-architecture.md: CalendarStack = CalendarMonth + DayDetail,
+// with StoryPlaybackModal presented full-screen from DayDetail.
+function CalendarFlow({ userId, pairId }: { userId: string; pairId: string }) {
+  return (
+    <CalendarStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <CalendarStackNav.Screen name="CalendarMonth">
+        {({ navigation }) => <CalendarScreen navigation={navigation} userId={userId} pairId={pairId} />}
+      </CalendarStackNav.Screen>
+      <CalendarStackNav.Screen name="DayDetail" component={DayDetailScreen} />
+      <CalendarStackNav.Screen
+        name="StoryPlaybackModal"
+        component={StoryPlaybackScreen}
+        options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+      />
+    </CalendarStackNav.Navigator>
+  );
+}
 
 // A "tab" that isn't really a tab — pressing it opens the Camera modal
 // instead of switching tabs. See docs/03-information-architecture.md:
@@ -93,9 +114,10 @@ function MainTabs({
       />
       <Tab.Screen
         name="Calendar"
-        component={CalendarScreen}
         options={{ tabBarIcon: ({ color }) => <CalendarIcon color={color} /> }}
-      />
+      >
+        {() => <CalendarFlow userId={userId} pairId={pairId} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

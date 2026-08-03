@@ -40,7 +40,9 @@
         {
           "locationWhenInUsePermission": "Afterlight uses your location to quietly note where a memory was captured, only when you choose to."
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-asset"
     ]
   }
 }

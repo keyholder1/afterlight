@@ -5,6 +5,8 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../supabase/client';
 import { upsertRemoteMemory, RemoteMemoryRow } from '../db/memories';
+import { recomputeDaySummary } from '../db/daySummaries';
+import { dayKey } from '../lib/formatTimestamp';
 
 export function subscribeRealtime(pairId: string, userId: string, onChange: () => void): () => void {
   let channel: RealtimeChannel | null = supabase
@@ -16,6 +18,7 @@ export function subscribeRealtime(pairId: string, userId: string, onChange: () =
         const row = payload.new as RemoteMemoryRow | undefined;
         if (row) {
           await upsertRemoteMemory(row, userId);
+          await recomputeDaySummary(dayKey(row.captured_at));
           onChange();
         }
       },
