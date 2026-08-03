@@ -4,19 +4,25 @@ node_modules/
 .expo-shared/
 dist/
 web-build/
+expo-env.d.ts
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 *.orig.*
+*.pem
 
 # Native
 android/
 ios/
+.kotlin/
 
 # Metro
 .metro-health-check*
+
+# TypeScript
+*.tsbuildinfo
 
 # Env
 .env
