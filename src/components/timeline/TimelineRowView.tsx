@@ -6,8 +6,17 @@ import { ConnectingThread } from './ConnectingThread';
 import { WaitingSilhouette } from './WaitingSilhouette';
 import { formatGapLabel } from '../../lib/formatGap';
 import type { TimelineRow } from '../../lib/timelineLayout';
+import type { LocalMemory } from '../../db/memories';
 
-export function TimelineRowView({ row, waitingForPartner }: { row: TimelineRow; waitingForPartner?: boolean }) {
+export function TimelineRowView({
+  row,
+  waitingForPartner,
+  onPressMemory,
+}: {
+  row: TimelineRow;
+  waitingForPartner?: boolean;
+  onPressMemory?: (memory: LocalMemory) => void;
+}) {
   const theme = useTheme();
 
   if (row.kind === 'gap') {
@@ -22,9 +31,15 @@ export function TimelineRowView({ row, waitingForPartner }: { row: TimelineRow; 
 
   return (
     <View style={[styles.row, { marginBottom: theme.spacing.lg }]}>
-      <View style={styles.slot}>{row.own && <PolaroidCard memory={row.own} />}</View>
       <View style={styles.slot}>
-        {row.partner ? <PolaroidCard memory={row.partner} /> : waitingForPartner ? <WaitingSilhouette /> : null}
+        {row.own && <PolaroidCard memory={row.own} onPress={() => onPressMemory?.(row.own!)} />}
+      </View>
+      <View style={styles.slot}>
+        {row.partner ? (
+          <PolaroidCard memory={row.partner} onPress={() => onPressMemory?.(row.partner!)} />
+        ) : waitingForPartner ? (
+          <WaitingSilhouette />
+        ) : null}
       </View>
       {row.threaded && <ConnectingThread />}
     </View>

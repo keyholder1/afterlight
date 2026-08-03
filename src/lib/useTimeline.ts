@@ -6,12 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMemoriesSince } from '../db/memories';
 import { buildTimelineRows, TimelineRow } from './timelineLayout';
 import { computeChapterBoundaries } from './chapterHeuristic';
-import { replaceProvisionalChapters, getChapterForDay } from '../db/lifeChapters';
+import { upsertProvisionalChapters, getChapterForDay } from '../db/lifeChapters';
 import { pullSince } from '../sync/pull';
 import { subscribeRealtime } from '../sync/realtime';
 import { dayKey } from './formatTimestamp';
 import { getActivePair } from '../supabase/pairing';
 import { fetchTodayPrompt } from '../supabase/dailyPrompts';
+import { pushChapters, pullChapters } from '../supabase/lifeChapters';
 
 const INITIAL_WINDOW_DAYS = 14;
 const LOAD_MORE_DAYS = 14;
@@ -37,10 +38,18 @@ export function useTimeline(pairId: string, userId: string) {
 
     // Chapters are recomputed from everything captured (not just the
     // visible window) so the boundary detection sees real gaps, but that's
-    // cheap enough to just do here rather than caching separately.
+    // cheap enough to just do here rather than caching separately. Pull
+    // first so a name-chapter-assigned title never gets clobbered by a
+    // fresh provisional recompute (see db/lifeChapters.ts's identity note).
+    try {
+      await pullChapters(pairId);
+    } catch (err) {
+      console.warn('Chapter pull failed:', err);
+    }
     const all = await getMemoriesSince(pairId, new Date(0).toISOString());
     const chapters = computeChapterBoundaries(all);
-    await replaceProvisionalChapters(chapters);
+    await upsertProvisionalChapters(chapters);
+    pushChapters(pairId).catch((err) => console.warn('Chapter push failed:', err));
     const todayChapter = await getChapterForDay(dayKey(new Date().toISOString()));
     setSeasonTitle(todayChapter?.title ?? null);
 

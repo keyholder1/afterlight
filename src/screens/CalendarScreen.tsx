@@ -6,6 +6,7 @@ import { useTheme } from '../theme';
 import { useCalendarMonth } from '../lib/useCalendarMonth';
 import { buildMonthGrid, WEEKDAY_LABELS, MONTH_NAMES } from '../lib/monthGrid';
 import { FilmStripCell } from '../components/calendar/FilmStripCell';
+import { GrainOverlay } from '../components/ui/GrainOverlay';
 
 export default function CalendarScreen({ navigation, userId, pairId }: any) {
   const theme = useTheme();
@@ -32,6 +33,7 @@ export default function CalendarScreen({ navigation, userId, pairId }: any) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.bgCanvas }]}>
+      <GrainOverlay />
       <View style={styles.header}>
         <Text style={[theme.type.displaySm, { color: theme.colors.textPrimary }]}>
           {seasonTitle ?? MONTH_NAMES[month - 1]}
