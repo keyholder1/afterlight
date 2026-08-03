@@ -10,6 +10,8 @@ import { replaceProvisionalChapters, getChapterForDay } from '../db/lifeChapters
 import { pullSince } from '../sync/pull';
 import { subscribeRealtime } from '../sync/realtime';
 import { dayKey } from './formatTimestamp';
+import { getActivePair } from '../supabase/pairing';
+import { fetchTodayPrompt } from '../supabase/dailyPrompts';
 
 const INITIAL_WINDOW_DAYS = 14;
 const LOAD_MORE_DAYS = 14;
@@ -24,6 +26,7 @@ function daysAgoIso(days: number): string {
 export function useTimeline(pairId: string, userId: string) {
   const [rows, setRows] = useState<TimelineRow[]>([]);
   const [seasonTitle, setSeasonTitle] = useState<string | null>(null);
+  const [waitingRowKey, setWaitingRowKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const windowDaysRef = useRef(INITIAL_WINDOW_DAYS);
 
@@ -40,7 +43,15 @@ export function useTimeline(pairId: string, userId: string) {
     await replaceProvisionalChapters(chapters);
     const todayChapter = await getChapterForDay(dayKey(new Date().toISOString()));
     setSeasonTitle(todayChapter?.title ?? null);
-  }, [pairId]);
+
+    try {
+      const pair = await getActivePair(userId);
+      const prompt = pair ? await fetchTodayPrompt(pair, userId) : null;
+      setWaitingRowKey(prompt?.own_memory_id && !prompt.partner_memory_id ? prompt.own_memory_id : null);
+    } catch {
+      setWaitingRowKey(null);
+    }
+  }, [pairId, userId]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
@@ -64,5 +75,5 @@ export function useTimeline(pairId: string, userId: string) {
     reload();
   }, [reload]);
 
-  return { rows, seasonTitle, loading, loadEarlier, refresh: reload };
+  return { rows, seasonTitle, waitingRowKey, loading, loadEarlier, refresh: reload };
 }

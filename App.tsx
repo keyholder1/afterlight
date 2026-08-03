@@ -9,13 +9,15 @@ import React, { useEffect } from 'react';
 import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as Notifications from 'expo-notifications';
 
 import { ThemeProvider, useTheme, useAppFonts } from './src/theme';
 import { getDb } from './src/db';
 import { useAppBootstrap } from './src/lib/useAppBootstrap';
+import { registerForPushNotificationsAsync, parseDeepLink } from './src/lib/notifications';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import EmailEntryScreen from './src/screens/EmailEntryScreen';
 import OtpVerifyScreen from './src/screens/OtpVerifyScreen';
@@ -33,6 +35,13 @@ const RootStack = createNativeStackNavigator();
 const AuthStackNav = createNativeStackNavigator();
 const CalendarStackNav = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Lets the notification response listener navigate from outside the React
+// tree — see docs/02-ux-flows-and-wireframes.md § 6, every push carries a
+// deep link. 'StoryPlaybackModal' lives inside CalendarFlow, not at the
+// root, but React Navigation resolves a unique screen name from any ref
+// in the tree, so this still works without threading params down.
+export const navigationRef = createNavigationContainerRef();
 
 // docs/03-information-architecture.md: CalendarStack = CalendarMonth + DayDetail,
 // with StoryPlaybackModal presented full-screen from DayDetail.
@@ -144,6 +153,14 @@ function LoadingView() {
 function RootNavigator() {
   const bootstrap = useAppBootstrap();
 
+  useEffect(() => {
+    if (bootstrap.status === 'ready' && bootstrap.userId) {
+      registerForPushNotificationsAsync(bootstrap.userId).catch((err) =>
+        console.warn('Push registration failed:', err),
+      );
+    }
+  }, [bootstrap.status, bootstrap.userId]);
+
   if (bootstrap.status === 'loading') return <LoadingView />;
   if (bootstrap.status === 'unauthenticated') return <AuthFlow />;
   if (bootstrap.status === 'needsProfile') {
@@ -187,6 +204,18 @@ function AppShell() {
     });
   }, []);
 
+  // Deep-links every notification tap to the right screen — see
+  // docs/02-ux-flows-and-wireframes.md § 6.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const link = parseDeepLink(response.notification.request.content.data ?? {});
+      if (link && navigationRef.isReady()) {
+        (navigationRef as any).navigate(link.screen, link.params);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: '#FAF7F2' }} />;
   }
@@ -201,7 +230,7 @@ function AppShell() {
 
   return (
     <ThemeProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <RootNavigator />
       </NavigationContainer>
     </ThemeProvider>

@@ -1,9 +1,12 @@
 // Real capture screen — see docs/02-ux-flows-and-wireframes.md § 2 and
 // docs/06-technical-architecture.md § Image upload. Serves both free
-// uploads and (from Phase 5) the daily prompt, which is why the prompt
-// line is picked from the rotating set every time this screen opens.
+// uploads and the daily prompt: if today's prompt exists server-side
+// (created by supabase/functions/send-daily-prompt) and this device hasn't
+// fulfilled it yet, this capture counts as that day's prompt; otherwise it
+// falls back to a plain rotating prompt line — which is also exactly the
+// correct behavior before fire_at each day, not a degraded state.
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
 import * as Location from 'expo-location';
@@ -12,6 +15,9 @@ import { randomPromptLine } from '../lib/promptLines';
 import { processCapture } from '../lib/capturePipeline';
 import { insertLocalMemory } from '../db/memories';
 import { pushUnsynced } from '../sync';
+import { getActivePair, Pair } from '../supabase/pairing';
+import { fetchTodayPrompt, linkMemoryToPrompt } from '../supabase/dailyPrompts';
+import type { LocalPrompt } from '../db/dailyPrompts';
 
 type Stage = 'camera' | 'processing' | 'saved';
 
@@ -22,8 +28,31 @@ export default function CameraScreen({ route, navigation }: any) {
   const [locationOn, setLocationOn] = useState(false);
   const [stage, setStage] = useState<Stage>('camera');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
-  const [promptLine] = useState(randomPromptLine);
+  const [promptLine, setPromptLine] = useState(randomPromptLine);
+  const [pair, setPair] = useState<Pair | null>(null);
+  const [activePrompt, setActivePrompt] = useState<LocalPrompt | null>(null);
   const cameraRef = useRef<CameraView>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const activePair = await getActivePair(userId);
+        if (!activePair) return;
+        setPair(activePair);
+        const prompt = await fetchTodayPrompt(activePair, userId);
+        const now = Date.now();
+        const isActiveWindow =
+          prompt && new Date(prompt.fire_at).getTime() <= now && now <= new Date(prompt.window_ends_at).getTime();
+        if (prompt && isActiveWindow && !prompt.own_memory_id) {
+          setActivePrompt(prompt);
+          setPromptLine(prompt.prompt_line);
+        }
+      } catch (err) {
+        console.warn('Could not check today’s prompt (offline, or none yet):', err);
+      }
+    })();
+  }, [userId]);
 
   if (!permission) return <View style={styles.container} />;
   if (!permission.granted) {
@@ -61,7 +90,7 @@ export default function CameraScreen({ route, navigation }: any) {
 
       const clientId = uuid();
       const processed = await processCapture(photo.uri, clientId);
-      await insertLocalMemory({
+      const memory = await insertLocalMemory({
         pairId,
         authorId: userId,
         capturedAt: new Date().toISOString(),
@@ -73,10 +102,17 @@ export default function CameraScreen({ route, navigation }: any) {
         locationName,
         latitude,
         longitude,
+        isDailyPrompt: !!activePrompt,
+        dailyPromptId: activePrompt?.id ?? null,
       });
 
       setStage('saved');
       pushUnsynced().catch((err) => console.warn('Background sync failed', err));
+      if (activePrompt && pair) {
+        linkMemoryToPrompt(pair, userId, activePrompt.id, memory.id).catch((err) =>
+          console.warn('Could not link capture to today’s prompt', err),
+        );
+      }
     } catch (err) {
       console.error('Capture failed', err);
       setStage('camera');

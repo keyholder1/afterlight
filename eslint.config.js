@@ -7,6 +7,8 @@ module.exports = defineConfig([
   expoConfig,
   prettierConfig,
   {
-    ignores: ["dist/*"],
+    // supabase/functions/** run on Deno, not Node/RN — a different
+    // toolchain entirely, linted (if at all) via `deno lint` separately.
+    ignores: ["dist/*", "supabase/**"],
   }
 ]);

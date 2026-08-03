@@ -21,7 +21,7 @@ export default function HomeTimelineScreen({
   partnerName: string | null;
 }) {
   const theme = useTheme();
-  const { rows, seasonTitle, loading, loadEarlier, refresh } = useTimeline(pairId, userId);
+  const { rows, seasonTitle, waitingRowKey, loading, loadEarlier, refresh } = useTimeline(pairId, userId);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.bgCanvas }]}>
@@ -42,7 +42,9 @@ export default function HomeTimelineScreen({
         <FlashList<TimelineRow>
           data={rows}
           keyExtractor={(row) => row.key}
-          renderItem={({ item }) => <TimelineRowView row={item} />}
+          renderItem={({ item }) => (
+            <TimelineRowView row={item} waitingForPartner={item.key === waitingRowKey} />
+          )}
           contentContainerStyle={styles.list}
           onStartReached={loadEarlier}
           onStartReachedThreshold={0.5}
