@@ -1,15 +1,12 @@
-// Root navigator — structure matches docs/03-information-architecture.md
-// exactly: AuthStack / PairingStack / MainTabs, with the Camera as a modal
-// presented over MainTabs rather than a tab of its own.
-//
-// `devAuthState` below is a Phase 0 stand-in for real session/pairing state,
-// which lands in Phase 1. It defaults to "authenticated + paired" so the
-// MainTabs shell (the thing Phase 0 needs to prove renders) is what boots by
-// default; flip it to see the Welcome/Pairing placeholders.
+// Root navigator — structure matches docs/03-information-architecture.md:
+// AuthStack / PairingStack / MainTabs, with Camera and Settings presented as
+// modals over MainTabs rather than tabs of their own. Which branch renders
+// is now driven by real session/profile/pair state via useAppBootstrap
+// (Phase 1) — the Phase 0 devAuthState placeholder is gone.
 
 import 'react-native-url-polyfill/auto';
 import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -18,15 +15,19 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { ThemeProvider, useTheme, useAppFonts } from './src/theme';
 import { getDb } from './src/db';
+import { useAppBootstrap } from './src/lib/useAppBootstrap';
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import EmailEntryScreen from './src/screens/EmailEntryScreen';
+import OtpVerifyScreen from './src/screens/OtpVerifyScreen';
+import DisplayNameScreen from './src/screens/DisplayNameScreen';
 import PairingHomeScreen from './src/screens/PairingHomeScreen';
 import HomeTimelineScreen from './src/screens/HomeTimelineScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import CameraScreen from './src/screens/CameraScreen';
-
-const devAuthState = { isAuthenticated: true, isPaired: true };
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const RootStack = createNativeStackNavigator();
+const AuthStackNav = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // A "tab" that isn't really a tab — pressing it opens the Camera modal
@@ -36,7 +37,7 @@ function CaptureTabPlaceholder() {
   return null;
 }
 
-function MainTabs() {
+function MainTabs({ userId, partnerName }: { userId: string; partnerName: string | null }) {
   const theme = useTheme();
   return (
     <Tab.Navigator
@@ -52,7 +53,11 @@ function MainTabs() {
         // philosophy land with the real component build in Phase 3.
       }}
     >
-      <Tab.Screen name="Home" component={HomeTimelineScreen} />
+      <Tab.Screen name="Home">
+        {({ navigation }) => (
+          <HomeTimelineScreen navigation={navigation} userId={userId} partnerName={partnerName} />
+        )}
+      </Tab.Screen>
       <Tab.Screen
         name="Capture"
         component={CaptureTabPlaceholder}
@@ -68,22 +73,52 @@ function MainTabs() {
   );
 }
 
-function RootNavigator() {
-  const { isAuthenticated, isPaired } = devAuthState;
+function AuthFlow() {
+  return (
+    <AuthStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStackNav.Screen name="Welcome" component={WelcomeScreen} />
+      <AuthStackNav.Screen name="EmailEntry" component={EmailEntryScreen} />
+      <AuthStackNav.Screen name="OtpVerify" component={OtpVerifyScreen} />
+    </AuthStackNav.Navigator>
+  );
+}
 
+function LoadingView() {
+  const theme = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.bgCanvas }}>
+      <ActivityIndicator color={theme.colors.accent} />
+    </View>
+  );
+}
+
+function RootNavigator() {
+  const bootstrap = useAppBootstrap();
+
+  if (bootstrap.status === 'loading') return <LoadingView />;
+  if (bootstrap.status === 'unauthenticated') return <AuthFlow />;
+  if (bootstrap.status === 'needsProfile') {
+    return <DisplayNameScreen userId={bootstrap.userId!} onDone={bootstrap.refresh} />;
+  }
+  if (bootstrap.status === 'needsPairing') {
+    return <PairingHomeScreen userId={bootstrap.userId!} onPaired={bootstrap.refresh} />;
+  }
+
+  // ready
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {!isAuthenticated ? (
-        <RootStack.Screen name="Welcome" component={WelcomeScreen} />
-      ) : !isPaired ? (
-        <RootStack.Screen name="PairingHome" component={PairingHomeScreen} />
-      ) : (
-        <RootStack.Screen name="MainTabs" component={MainTabs} />
-      )}
+      <RootStack.Screen name="MainTabs">
+        {() => <MainTabs userId={bootstrap.userId!} partnerName={bootstrap.partnerName} />}
+      </RootStack.Screen>
       <RootStack.Screen
         name="CameraModal"
         component={CameraScreen}
         options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+      />
+      <RootStack.Screen
+        name="SettingsModal"
+        component={SettingsScreen}
+        options={{ presentation: 'modal' }}
       />
     </RootStack.Navigator>
   );
